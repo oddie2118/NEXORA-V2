@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>NEXORA CONTROL</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg:#14161B;
+    --panel:#1C1F26;
+    --panel-2:#20232B;
+    --border:#2B2F39;
+    --text:#E9EAEE;
+    --muted:#9AA0AC;
+    --accent:#E0A93E;
+    --accent-dim:#3A331F;
+    --ok:#4ADE80;
+    --warn:#F5B84E;
+    --danger:#F0685C;
+    --radius:10px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);height:100%;}
+  h1,h2,h3{font-weight:600;margin:0 0 4px 0;}
+  h1{font-size:1.15rem;letter-spacing:.2px;}
+  h2{font-size:1rem;color:var(--text);}
+  p{color:var(--muted);margin:2px 0;}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;padding:10px 16px;font-size:.9rem;transition:opacity .15s;}
+  button:active{opacity:.75;}
+  button.primary{background:var(--accent);color:#221A08;font-weight:600;}
+  button.ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+  button.danger{background:var(--danger);color:#2A0C09;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  input,select,textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:10px 12px;font-size:.9rem;font-family:inherit;
+  }
+  input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);}
+  label{font-size:.78rem;color:var(--muted);display:block;margin:10px 0 4px;}
+  .hidden{display:none !important;}
+
+  /* -------- LOGIN -------- */
+  #pantallaLogin{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .cajaLogin{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px 24px;}
+  .marca{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;}
+  .marca .punto{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;}
+  .marca span{font-weight:700;font-size:1.25rem;letter-spacing:.5px;}
+  .subMarca{color:var(--muted);font-size:.8rem;margin-bottom:22px;}
+  .mensaje{font-size:.82rem;padding:8px 10px;border-radius:8px;margin-top:12px;}
+  .mensaje.error{background:#3A1414;color:#FCA5A5;}
+  .mensaje.ok{background:#123321;color:#86EFAC;}
+  .linkChico{background:none;border:none;color:var(--accent);font-size:.8rem;padding:4px 0;text-decoration:underline;}
+
+  /* -------- APP -------- */
+  #app{display:none;min-height:100vh;}
+  #app.activo{display:flex;}
+  #sidebar{
+    width:220px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+  #sidebar .marca{padding:0 6px;margin-bottom:2px;}
+  #sidebar .subMarca{padding:0 6px;margin-bottom:18px;}
+  .navItem{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--muted);
+    font-size:.85rem;cursor:pointer;margin-bottom:2px;
+  }
+  .navItem:hover{background:var(--panel-2);color:var(--text);}
+  .navItem.activo{background:var(--accent-dim);color:var(--accent);font-weight:600;}
+  .navItem.bloqueado{opacity:.35;cursor:default;}
+  .navItem.bloqueado:hover{background:none;color:var(--muted);}
+  #infoUsuario{margin-top:auto;padding:12px 6px 0;border-top:1px solid var(--border);}
+  #infoUsuario .nombre{font-size:.85rem;font-weight:600;}
+  #infoUsuario .rol{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+  #infoUsuario .equipo{font-size:.72rem;color:var(--muted);margin-top:2px;}
+  #infoUsuario button{width:100%;margin-top:10px;font-size:.78rem;padding:7px;}
+
+  #contenido{flex:1;padding:24px;max-width:980px;}
+  .encabezadoVista{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px;}
+  .tarjeta{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+  .tarjeta .num{font-size:1.5rem;font-weight:700;}
+  .tarjeta .etq{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:2px;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  th{text-align:left;color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);}
+  td{padding:8px 10px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:600;}
+  .badge.ok{background:#123321;color:var(--ok);}
+  .badge.warn{background:#3A2E10;color:var(--warn);}
+  .badge.off{background:#2B2F39;color:var(--muted);}
+  .filaBotones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .proximamente{color:var(--muted);font-size:.85rem;padding:30px 0;text-align:center;}
+  #capaCarga{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50;color:var(--text);font-size:.9rem;}
+  #capaCarga.activo{display:flex;}
+  @media(max-width:760px){
+    #app.activo{flex-direction:column;}
+    #sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;padding:12px;}
+    #sidebar .marca,#sidebar .subMarca{display:none;}
+    .navItem{padding:8px 10px;}
+    #infoUsuario{display:none;}
+    #contenido{padding:16px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= CONFIGURACIÓN ================= -->
+<script>
+  // Reemplaza estos dos valores con los de tu proyecto Supabase
+  // (Project Settings → API → Project URL / anon public key)
+  const SUPABASE_URL = "https://dbsowochjnvhisfniabt.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRic293b2Noam52aGlzZm5pYWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3OTYxMzIsImV4cCI6MjEwNTM3MjEzMn0.vx-C-3x0zvrk7jaNBaqVvq8h-h9mr_CpXsSztnWpIyE";
+</script>
+
+<!-- ================= LOGIN / INSTALACIÓN ================= -->
+<div id="pantallaLogin">
+  <div class="cajaLogin">
+    <div class="marca"><span class="punto"></span><span>NEXORA CONTROL</span></div>
+    <div class="subMarca" id="subtituloLogin">Nueva campaña</div>
+
+    <div id="vistaLogin">
+      <label>Usuario</label>
+      <input id="loginUsuario" autocomplete="username" placeholder="usuario">
+      <label>Contraseña</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••">
+      <button class="primary" style="width:100%;margin-top:18px" onclick="iniciarSesion()">Entrar</button>
+      <div style="text-align:center;margin-top:14px">
+        <button class="linkChico" onclick="mostrarInstalacion()">Primera vez / instalar sistema</button>
+      </div>
+    </div>
+
+    <div id="vistaInstalar" class="hidden">
+      <p style="margin-bottom:10px">Crea la cuenta del Dueño. Solo funciona una vez, cuando el sistema no tiene usuarios.</p>
+      <label>Tu nombre</label>
+      <input id="instNombre" placeholder="Nombre completo">
+      <label>Usuario</label>
+      <input id="instUsuario" placeholder="usuario">
+      <label>Contraseña</label>
+      <input id="instPassword" type="password" placeholder="mínimo 6 caracteres">
+      <button class="primary" style="width:100%;margin-top:18px" onclick="instalarSistema()">Crear cuenta de Dueño</button>
+      <div style="text-align:center;margin-top:14px">
+        <button class="linkChico" onclick="mostrarLogin()">Ya tengo cuenta, iniciar sesión</button>
+      </div>
+    </div>
+
+    <div id="mensajeLogin"></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <div id="sidebar">
+    <div class="marca"><span class="punto"></span><span>NEXORA</span></div>
+    <div class="subMarca" id="nombreCampanaSidebar">Sin campaña activa</div>
+    <div id="menuNav"></div>
+    <div id="infoUsuario">
+      <div class="nombre" id="infoNombre"></div>
+      <div class="rol" id="infoRol"></div>
+      <div class="equipo" id="infoEquipo"></div>
+      <button class="ghost" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+  </div>
+  <div id="contenido"></div>
+</div>
+
+<div id="capaCarga"><div>Cargando…</div></div>
+
+<script>
+/* ============================================================
+   NEXORA CONTROL — FASE 1
+   Roles/menús + carga de bases + asignación automática
+   ============================================================ */
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const MENUS = {
+  'dueño': [
+    {id:'inicio', label:'Inicio', activa:true},
+    {id:'personal', label:'Personal', activa:true},
+    {id:'equipos', label:'Equipos', activa:true},
+    {id:'campana', label:'Campaña', activa:true},
+    {id:'operacion', label:'Operación / Bases', activa:true},
+    {id:'finanzas', label:'Finanzas', activa:false},
+    {id:'pagos', label:'Pagos', activa:false},
+    {id:'socios', label:'Socios', activa:false},
+    {id:'reportes', label:'Reportes', activa:false},
+    {id:'reglas', label:'Reglas', activa:false},
+    {id:'configuracion', label:'Configuración', activa:false},
+    {id:'auditoria', label:'Auditoría', activa:true},
+  ],
+  'encargado': [
+    {id:'inicio', label:'Inicio', activa:true},
+    {id:'personal', label:'Personal', activa:true},
+    {id:'equipos', label:'Equipos', activa:true},
+    {id:'operacion', label:'Bases', activa:true},
+    {id:'validaciones', label:'Validaciones', activa:false},
+    {id:'finanzas', label:'Finanzas', activa:false},
+    {id:'socios', label:'Socios', activa:false},
+    {id:'pagos', label:'Pagos', activa:false},
+    {id:'reportes', label:'Reportes', activa:false},
+  ],
+  'trabajador': [
+    {id:'inicio', label:'Inicio', activa:true},
+    {id:'misllamadas', label:'Mis llamadas', activa:true},
+    {id:'miproduccion', label:'Mi producción', activa:false},
+    {id:'asistencia', label:'Asistencia', activa:false},
+    {id:'mispagos', label:'Mis pagos', activa:false},
+    {id:'mistickets', label:'Mis tickets', activa:false},
+  ]
+};
+
+let sesion = null; // {token, nombre, usuario, rol, equipo_codigo}
+let campanaActiva = null;
+let vistaActual = 'inicio';
+
+function mostrarCarga(on){ document.getElementById('capaCarga').classList.toggle('activo', !!on); }
+function msg(texto, tipo){
+  const el = document.getElementById('mensajeLogin');
+  el.innerHTML = texto ? `<div class="mensaje ${tipo}">${texto}</div>` : '';
+}
+function escapeHtml(s){ return (s===null||s===undefined) ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function getDeviceToken(){
+  let t = localStorage.getItem('nexora_device_token');
+  if(!t){
+    t = 'dev_' + crypto.randomUUID();
+    localStorage.setItem('nexora_device_token', t);
+  }
+  return t;
+}
+
+/* ---------------- LOGIN / INSTALACIÓN ---------------- */
+function mostrarInstalacion(){
+  document.getElementById('vistaLogin').classList.add('hidden');
+  document.getElementById('vistaInstalar').classList.remove('hidden');
+  msg('','');
+}
+function mostrarLogin(){
+  document.getElementById('vistaInstalar').classList.add('hidden');
+  document.getElementById('vistaLogin').classList.remove('hidden');
+  msg('','');
+}
+
+async function instalarSistema(){
+  const nombre = document.getElementById('instNombre').value.trim();
+  const usuario = document.getElementById('instUsuario').value.trim();
+  const password = document.getElementById('instPassword').value;
+  if(!nombre || !usuario || password.length < 6){
+    msg('Completa nombre, usuario y una contraseña de al menos 6 caracteres.', 'error'); return;
+  }
+  mostrarCarga(true);
+  const {data, error} = await sb.rpc('n_fn_instalar', {p_nombre:nombre, p_usuario:usuario, p_password:password});
+  mostrarCarga(false);
+  if(error){
+    if(error.message && error.message.includes('YA_INSTALADO')){
+      msg('El sistema ya tiene un Dueño creado. Inicia sesión normalmente.', 'error');
+    } else {
+      msg('No se pudo instalar: ' + error.message, 'error');
+    }
+    return;
+  }
+  msg('Cuenta de Dueño creada. Ahora inicia sesión.', 'ok');
+  mostrarLogin();
+  document.getElementById('loginUsuario').value = usuario;
+}
+
+async function iniciarSesion(){
+  const usuario = document.getElementById('loginUsuario').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if(!usuario || !password){ msg('Escribe usuario y contraseña.', 'error'); return; }
+  mostrarCarga(true);
+  const {data, error} = await sb.rpc('n_fn_login', {p_usuario:usuario, p_password:password, p_device_token:getDeviceToken()});
+  mostrarCarga(false);
+  if(error){ msg('Usuario o contraseña incorrectos.', 'error'); return; }
+  sesion = data;
+  localStorage.setItem('nexora_token', sesion.token);
+  await entrarApp();
+}
+
+async function intentarSesionGuardada(){
+  const token = localStorage.getItem('nexora_token');
+  if(!token) return;
+  mostrarCarga(true);
+  const {data, error} = await sb.rpc('n_fn_verificar_sesion', {p_token: token});
+  mostrarCarga(false);
+  if(error || !data || data.error) { localStorage.removeItem('nexora_token'); return; }
+  sesion = {token, nombre:data.nombre, usuario:data.usuario, rol:data.rol};
+  await entrarApp();
+}
+
+function cerrarSesion(){
+  localStorage.removeItem('nexora_token');
+  sesion = null;
+  document.getElementById('app').classList.remove('activo');
+  document.getElementById('pantallaLogin').style.display = 'flex';
+}
+
+/* ---------------- ENTRAR A LA APP ---------------- */
+async function entrarApp(){
+  document.getElementById('pantallaLogin').style.display = 'none';
+  document.getElementById('app').classList.add('activo');
+  document.getElementById('infoNombre').textContent = sesion.nombre;
+  document.getElementById('infoRol').textContent = sesion.rol;
+  document.getElementById('infoEquipo').textContent = sesion.equipo_codigo ? ('Equipo: ' + sesion.equipo_codigo) : '';
+
+  await cargarCampanaActiva();
+  construirMenu();
+  irVista('inicio');
+  setInterval(() => sb.rpc('n_fn_latido', {p_token: sesion.token}), 60000);
+}
+
+async function cargarCampanaActiva(){
+  const {data} = await sb.rpc('n_fn_campana_activa', {p_token: sesion.token});
+  campanaActiva = (data && data.id) ? data : null;
+  document.getElementById('nombreCampanaSidebar').textContent = campanaActiva ? campanaActiva.nombre : 'Sin campaña activa';
+}
+
+function construirMenu(){
+  const cont = document.getElementById('menuNav');
+  cont.innerHTML = '';
+  (MENUS[sesion.rol] || []).forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'navItem' + (item.activa ? '' : ' bloqueado');
+    div.textContent = item.label + (item.activa ? '' : ' · próx.');
+    div.onclick = () => { if(item.activa) irVista(item.id); };
+    div.dataset.id = item.id;
+    cont.appendChild(div);
+  });
+}
+
+function marcarMenuActivo(id){
+  document.querySelectorAll('.navItem').forEach(n => n.classList.toggle('activo', n.dataset.id === id));
+}
+
+async function irVista(id){
+  vistaActual = id;
+  marcarMenuActivo(id);
+  const c = document.getElementById('contenido');
+  c.innerHTML = '<p>Cargando…</p>';
+  try{
+    if(id === 'inicio') await vistaInicio(c);
+    else if(id === 'personal') await vistaPersonal(c);
+    else if(id === 'campana') await vistaCampana(c);
+    else if(id === 'operacion') await vistaOperacion(c);
+    else if(id === 'equipos') await vistaEquipos(c);
+    else if(id === 'auditoria') await vistaAuditoria(c);
+    else if(id === 'misllamadas') await vistaMisLlamadas(c);
+    else c.innerHTML = '<div class="proximamente">Este módulo llega en la siguiente fase.</div>';
+  }catch(e){
+    c.innerHTML = `<div class="mensaje error">Ocurrió un error: ${escapeHtml(e.message||e)}</div>`;
+  }
+}
+
+/* ---------------- INICIO ---------------- */
+async function vistaInicio(c){
+  let resumen = {};
+  if(campanaActiva){
+    const {data} = await sb.rpc('n_fn_resumen_campana', {p_token: sesion.token, p_campana_id: campanaActiva.id});
+    resumen = data || {};
+  }
+  const estados = ['ingresado','asignado','trabajado','restante','exitoso','no_exitoso'];
+  c.innerHTML = `
+    <div class="encabezadoVista"><div><h1>Inicio</h1><p>${campanaActiva ? 'Campaña activa: ' + escapeHtml(campanaActiva.nombre) : 'No hay campaña activa todavía.'}</p></div></div>
+    <div class="tarjetas">
+      ${estados.map(e => `<div class="tarjeta"><div class="num">${resumen[e]||0}</div><div class="etq">${e.replace('_',' ')}</div></div>`).join('')}
+    </div>
+    <div class="panel">
+      <h2>Sesión</h2>
+      <p>Usuario: ${escapeHtml(sesion.nombre)} · Rol: ${escapeHtml(sesion.rol)} ${sesion.equipo_codigo ? '· Equipo: ' + escapeHtml(sesion.equipo_codigo) : ''}</p>
+    </div>
+  `;
+}
+
+/* ---------------- PERSONAL ---------------- */
+async function vistaPersonal(c){
+  const {data, error} = await sb.rpc('n_fn_listar_usuarios', {p_token: sesion.token});
+  const lista = data || [];
+  const esDueno = sesion.rol === 'dueño';
+  c.innerHTML = `
+    <div class="encabezadoVista"><div><h1>Personal</h1><p>${lista.length} usuarios registrados</p></div>
+      ${esDueno ? '<button class="primary" onclick="mostrarFormPersonal()">+ Nuevo usuario</button>' : ''}
+    </div>
+    <div id="formPersonalCont"></div>
+    <div class="panel" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th>Sábado</th>${esDueno?'<th></th>':''}</tr></thead>
+        <tbody>
+          ${lista.map(u => `
+            <tr>
+              <td>${escapeHtml(u.nombre)}</td>
+              <td>${escapeHtml(u.usuario)}</td>
+              <td>${escapeHtml(u.rol)}</td>
+              <td><span class="badge ${u.activo?'ok':'off'}">${u.activo?'Activo':'Inactivo'}</span></td>
+              <td>${u.trabaja_sabado?'Sí':'No'}</td>
+              ${esDueno ? `<td><button class="ghost" style="padding:5px 10px;font-size:.75rem" onclick="alternarActivo('${u.id}', ${!u.activo})">${u.activo?'Desactivar':'Activar'}</button></td>` : ''}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function mostrarFormPersonal(){
+  document.getElementById('formPersonalCont').innerHTML = `
+    <div class="panel">
+      <h2>Nuevo usuario</h2>
+      <label>Nombre</label><input id="npNombre">
+      <label>Usuario</label><input id="npUsuario">
+      <label>Contraseña</label><input id="npPassword" type="password">
+      <label>Rol</label>
+      <select id="npRol"><option value="trabajador">Trabajador</option><option value="encargado">Encargado</option></select>
+      <label><input type="checkbox" id="npSabado" style="width:auto;display:inline-block;margin-right:6px">Trabaja sábado</label>
+      <label>Observaciones</label><textarea id="npObs" rows="2"></textarea>
+      <div class="filaBotones">
+        <button class="primary" onclick="crearUsuario()">Guardar</button>
+        <button class="ghost" onclick="irVista('personal')">Cancelar</button>
+      </div>
+      <div id="msgPersonal"></div>
+    </div>
+  `;
+}
+
+async function crearUsuario(){
+  const nombre = document.getElementById('npNombre').value.trim();
+  const usuario = document.getElementById('npUsuario').value.trim();
+  const password = document.getElementById('npPassword').value;
+  const rol = document.getElementById('npRol').value;
+  const sabado = document.getElementById('npSabado').checked;
+  const obs = document.getElementById('npObs').value.trim();
+  if(!nombre || !usuario || password.length < 6){
+    document.getElementById('msgPersonal').innerHTML = '<div class="mensaje error">Completa nombre, usuario y contraseña (mín. 6 caracteres).</div>';
+    return;
+  }
+  const {error} = await sb.rpc('n_fn_crear_usuario', {
+    p_token: sesion.token, p_nombre:nombre, p_usuario:usuario, p_password:password,
+    p_rol:rol, p_trabaja_sabado:sabado, p_observaciones:obs
+  });
+  if(error){
+    document.getElementById('msgPersonal').innerHTML = `<div class="mensaje error">${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  irVista('personal');
+}
+
+async function alternarActivo(id, nuevoEstado){
+  await sb.rpc('n_fn_editar_usuario', {
+    p_token: sesion.token, p_usuario_id:id, p_nombre:null, p_activo:nuevoEstado,
+    p_trabaja_sabado:null, p_observaciones:null, p_password:null
+  });
+  irVista('personal');
+}
+
+/* ---------------- CAMPAÑA ---------------- */
+async function vistaCampana(c){
+  const esDueno = sesion.rol === 'dueño';
+  let lista = [];
+  if(esDueno){
+    const {data} = await sb.rpc('n_fn_listar_campanas', {p_token: sesion.token});
+    lista = data || [];
+  }
+  c.innerHTML = `
+    <div class="encabezadoVista"><div><h1>Campaña</h1><p>${campanaActiva ? 'Activa: ' + escapeHtml(campanaActiva.nombre) : 'No hay campaña activa'}</p></div></div>
+    ${esDueno ? `
+    <div class="panel">
+      <h2>Crear nueva campaña</h2>
+      <p style="margin-bottom:8px">Crear una nueva campaña cierra la campaña activa actual. Las bases y registros de la campaña anterior quedan guardados en su historial, pero dejan de mostrarse como operación en curso.</p>
+      <label>Nombre de la campaña</label>
+      <input id="nombreNuevaCampana" placeholder="Ej. Campaña Septiembre">
+      <div class="filaBotones"><button class="primary" onclick="crearCampana()">Crear y activar</button></div>
+      <div id="msgCampana"></div>
+    </div>
+    <div class="panel" style="overflow-x:auto">
+      <h2>Historial</h2>
+      <table>
+        <thead><tr><th>Nombre</th><th>Estado</th><th>Creada</th></tr></thead>
+        <tbody>${lista.map(cm => `<tr><td>${escapeHtml(cm.nombre)}</td><td><span class="badge ${cm.activa?'ok':'off'}">${cm.activa?'Activa':'Cerrada'}</span></td><td>${new Date(cm.creada_en).toLocaleDateString()}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>` : '<div class="panel"><p>Solo el Dueño puede crear campañas nuevas.</p></div>'}
+  `;
+}
+
+async function crearCampana(){
+  const nombre = document.getElementById('nombreNuevaCampana').value.trim();
+  if(!nombre){ document.getElementById('msgCampana').innerHTML = '<div class="mensaje error">Escribe un nombre.</div>'; return; }
+  if(!confirm('Esto cerrará la campaña activa actual y comenzará "' + nombre + '" limpia. ¿Continuar?')) return;
+  const {error} = await sb.rpc('n_fn_crear_campana', {p_token: sesion.token, p_nombre:nombre});
+  if(error){ document.getElementById('msgCampana').innerHTML = `<div class="mensaje error">${escapeHtml(error.message)}</div>`; return; }
+  await cargarCampanaActiva();
+  irVista('campana');
+}
+
+/* ---------------- OPERACIÓN / BASES ---------------- */
+async function vistaOperacion(c){
+  if(!campanaActiva){
+    c.innerHTML = `<div class="encabezadoVista"><h1>Operación / Bases</h1></div><div class="panel"><p>Primero crea una campaña activa en el módulo "Campaña".</p></div>`;
+    return;
+  }
+  const {data:resumen} = await sb.rpc('n_fn_resumen_campana', {p_token: sesion.token, p_campana_id: campanaActiva.id});
+  const r = resumen || {};
+  const disponibles = (r.ingresado||0) + (r.restante||0);
+
+  c.innerHTML = `
+    <div class="encabezadoVista"><div><h1>Operación / Bases</h1><p>${escapeHtml(campanaActiva.nombre)}</p></div></div>
+    <div class="tarjetas">
+      <div class="tarjeta"><div class="num">${r.ingresado||0}</div><div class="etq">Ingresados</div></div>
+      <div class="tarjeta"><div class="num">${r.asignado||0}</div><div class="etq">Asignados</div></div>
+      <div class="tarjeta"><div class="num">${r.trabajado||0}</div><div class="etq">Trabajados</div></div>
+      <div class="tarjeta"><div class="num">${disponibles}</div><div class="etq">Disponibles</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Cargar base (CSV)</h2>
+      <p style="margin-bottom:8px">Sube un archivo .csv exportado de Excel/Google Sheets. La primera fila debe tener los nombres de columna.</p>
+      <input type="file" id="archivoCSV" accept=".csv,text/csv">
+      <label>Columna usada para no duplicar (ej. telefono)</label>
+      <input id="columnaDedupe" placeholder="telefono">
+      <div class="filaBotones"><button class="primary" onclick="procesarCSV()">Cargar registros</button></div>
+      <div id="msgCarga"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Asignación automática</h2>
+      <p style="margin-bottom:8px">Reparte registros disponibles entre los trabajadores activos, sin duplicar. Hay ${disponibles} registros disponibles.</p>
+      <label>Cantidad por trabajador</label>
+      <input id="cantidadAsignar" type="number" value="50" min="1">
+      <div class="filaBotones"><button class="primary" onclick="asignarAutomatico()">Asignar ahora</button></div>
+      <div id="msgAsignar"></div>
+    </div>
+  `;
+}
+
+function parseCSV(texto){
+  const filas = [];
+  let fila = [], campo = '', dentroComillas = false;
+  for(let i=0;i<texto.length;i++){
+    const ch = texto[i], sig = texto[i+1];
+    if(dentroComillas){
+      if(ch === '"' && sig === '"'){ campo += '"'; i++; }
+      else if(ch === '"'){ dentroComillas = false; }
+      else campo += ch;
+    } else {
+      if(ch === '"') dentroComillas = true;
+      else if(ch === ',' || ch === ';'){ fila.push(campo); campo=''; }
+      else if(ch === '\n'){ fila.push(campo); filas.push(fila); fila=[]; campo=''; }
+      else if(ch === '\r'){ /* ignorar */ }
+      else campo += ch;
+    }
+  }
+  if(campo.length || fila.length){ fila.push(campo); filas.push(fila); }
+  if(!filas.length) return [];
+  const encabezados = filas[0].map(h => h.trim());
+  return filas.slice(1).filter(f => f.some(v => v && v.trim() !== '')).map(f => {
+    const obj = {};
+    encabezados.forEach((h,i) => obj[h] = (f[i]||'').trim());
+    return obj;
+  });
+}
+
+async function procesarCSV(){
+  const archivo = document.getElementById('archivoCSV').files[0];
+  const columnaDedupe = document.getElementById('columnaDedupe').value.trim();
+  const msgEl = document.getElementById('msgCarga');
+  if(!archivo){ msgEl.innerHTML = '<div class="mensaje error">Selecciona un archivo .csv.</div>'; return; }
+  const texto = await archivo.text();
+  const registros = parseCSV(texto);
+  if(!registros.length){ msgEl.innerHTML = '<div class="mensaje error">No se encontraron filas con datos.</div>'; return; }
+
+  mostrarCarga(true);
+  const {data, error} = await sb.rpc('n_fn_cargar_base', {
+    p_token: sesion.token, p_campana_id: campanaActiva.id, p_nombre_archivo: archivo.name,
+    p_registros: registros, p_campo_dedupe: columnaDedupe || null
+  });
+  mostrarCarga(false);
+  if(error){ msgEl.innerHTML = `<div class="mensaje error">${escapeHtml(error.message)}</div>`; return; }
+  msgEl.innerHTML = `<div class="mensaje ok">Cargados ${data.insertados} registros. Duplicados descartados: ${data.duplicados}.</div>`;
+  irVista('operacion');
+}
+
+async function asignarAutomatico(){
+  const cantidad = parseInt(document.getElementById('cantidadAsignar').value, 10) || 0;
+  const msgEl = document.getElementById('msgAsignar');
+  if(cantidad <= 0){ msgEl.innerHTML = '<div class="mensaje error">Escribe una cantidad válida.</div>'; return; }
+  mostrarCarga(true);
+  const {data, error} = await sb.rpc('n_fn_asignar_automatico', {p_token: sesion.token, p_campana_id: campanaActiva.id, p_cantidad: cantidad});
+  mostrarCarga(false);
+  if(error){ msgEl.innerHTML = `<div class="mensaje error">${escapeHtml(error.message)}</div>`; return; }
+  msgEl.innerHTML = `<div class="mensaje ok">Se asignaron ${data.total_asignado} registros en total.</div>`;
+  irVista('operacion');
+}
+
+/* ---------------- EQUIPOS ---------------- */
+async function vistaEquipos(c){
+  const {data, error} = await sb.rpc('n_fn_monitor_equipos', {p_token: sesion.token});
+  const lista = data || [];
+  c.innerHTML = `
+    <div class="encabezadoVista"><h1>Equipos</h1><p>${lista.length} equipos registrados</p></div>
+    <div class="panel" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Equipo</th><th>Último usuario</th><th>Estado</th><th>Última actividad</th></tr></thead>
+        <tbody>
+          ${lista.map(e => `<tr><td>${escapeHtml(e.codigo)}</td><td>${escapeHtml(e.usuario||'—')}</td><td><span class="badge ${e.estado==='conectado'?'ok':'off'}">${e.estado}</span></td><td>${e.ultima_actividad ? new Date(e.ultima_actividad).toLocaleString() : '—'}</td></tr>`).join('') || '<tr><td colspan="4">Aún no hay equipos registrados.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ---------------- AUDITORÍA ---------------- */
+async function vistaAuditoria(c){
+  const {data, error} = await sb.rpc('n_fn_auditoria', {p_token: sesion.token, p_limite: 200});
+  const lista = data || [];
+  c.innerHTML = `
+    <div class="encabezadoVista"><h1>Auditoría</h1><p>Últimas ${lista.length} acciones</p></div>
+    <div class="panel" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Fecha</th><th>Rol</th><th>Acción</th><th>Tabla</th></tr></thead>
+        <tbody>
+          ${lista.map(a => `<tr><td>${new Date(a.creado_en).toLocaleString()}</td><td>${escapeHtml(a.rol||'')}</td><td>${escapeHtml(a.accion)}</td><td>${escapeHtml(a.tabla_afectada||'')}</td></tr>`).join('') || '<tr><td colspan="4">Sin actividad registrada.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ---------------- MIS LLAMADAS (trabajador, solo lectura por ahora) ---------------- */
+async function vistaMisLlamadas(c){
+  if(!campanaActiva){ c.innerHTML = '<div class="panel"><p>No hay campaña activa.</p></div>'; return; }
+  const {data, error} = await sb.rpc('n_fn_mis_registros', {p_token: sesion.token, p_campana_id: campanaActiva.id});
+  const lista = data || [];
+  c.innerHTML = `
+    <div class="encabezadoVista"><h1>Mis llamadas</h1><p>${lista.length} registros asignados</p></div>
+    <div class="panel"><p>Marcar el resultado de cada llamada llega en la siguiente fase. Por ahora puedes ver lo que tienes asignado.</p></div>
+    <div class="panel" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Datos</th><th>Estado</th><th>Asignado</th></tr></thead>
+        <tbody>
+          ${lista.map(r => `<tr><td>${escapeHtml(JSON.stringify(r.datos))}</td><td><span class="badge warn">${r.estado}</span></td><td>${r.asignado_en ? new Date(r.asignado_en).toLocaleString() : '—'}</td></tr>`).join('') || '<tr><td colspan="3">Aún no tienes registros asignados.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ---------------- INICIO DE LA APP ---------------- */
+intentarSesionGuardada();
+</script>
+</body>
+</html>
